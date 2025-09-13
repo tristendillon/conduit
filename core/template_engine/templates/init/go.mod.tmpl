@@ -1,0 +1,9 @@
+module {{.ModuleName}}
+
+go 1.25.0
+
+require (
+	github.com/tristendillon/conduit v0.0.0-00000000000000-000000000000
+)
+
+replace github.com/tristendillon/conduit => ../.. // this is a placeholder for the actual version of the conduit package

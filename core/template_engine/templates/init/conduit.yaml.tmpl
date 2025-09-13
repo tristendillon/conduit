@@ -1,0 +1,11 @@
+- name: {{.ModuleName}}
+
+config:
+  server:
+    host: "localhost"
+    port: 8080
+  codegen:
+    go:
+      output: "./.conduit/go"
+    typescript:
+      output: "./.conduit/ts"

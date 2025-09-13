@@ -1,0 +1,50 @@
+{
+  "name": "Conduit — Dev Container (Go + Bun)",
+  "image": "mcr.microsoft.com/devcontainers/go",
+  "features": {
+    "ghcr.io/lumenpink/devcontainer-features/bun:0": {
+      "version": "latest"
+    },
+
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installJq": true,
+      "upgradePackages": true
+    },
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "go.useLanguageServer": true,
+        "go.formatTool": "goimports",
+        "files.watcherExclude": {
+          "**/.git/**": true,
+          "**/node_modules/**": true,
+          "**/dist/**": true,
+          "**/generated/**": true
+        }
+      }
+    }
+  },
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Conduit API Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh"
+}

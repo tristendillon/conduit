@@ -1,0 +1,18 @@
+package profiles
+
+import (
+	"encoding/json"
+	"net/http"
+	"test/api/v1/profiles/profile_repo"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	profiles := profile_repo.GetAllProfiles()
+	data, err := json.Marshal(profiles)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
