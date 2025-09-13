@@ -49,6 +49,7 @@ func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
 	w.RouteTree.Reset()
 	var discovered []models.DiscoveredFile
 	fileCache := cache.GetCache()
+	isInitialPopulation := !fileCache.IsWarmed()
 
 	var cacheHits, cacheMisses int
 
@@ -103,12 +104,17 @@ func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
 
 	walkDuration := time.Since(startTime)
 	totalRoutes := cacheHits + cacheMisses
-	logger.Debug("Walk completed in %v: %d routes (%d cached, %d parsed)",
-		walkDuration, totalRoutes, cacheHits, cacheMisses)
 
-	if totalRoutes > 0 {
+	if isInitialPopulation && totalRoutes > 0 {
+		logger.Debug("Initial walk completed in %v: discovered and cached %d routes",
+			walkDuration, totalRoutes)
+		fileCache.MarkWarmed()
+	} else if totalRoutes > 0 {
 		cacheHitRate := float64(cacheHits) / float64(totalRoutes) * 100
-		logger.Debug("Cache performance: %.1f%% hit rate", cacheHitRate)
+		logger.Debug("Walk completed in %v: %d routes (%.1f%% cached, %d parsed)",
+			walkDuration, totalRoutes, cacheHitRate, cacheMisses)
+	} else {
+		logger.Debug("Walk completed in %v: no routes found", walkDuration)
 	}
 
 	return discovered, err

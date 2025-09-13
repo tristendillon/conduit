@@ -132,8 +132,29 @@ func (fc *FileCache) GetMetrics() *CacheMetrics {
 
 func (fc *FileCache) LogStats() {
 	metrics := fc.GetMetrics()
-	logger.Debug("Cache stats: Hits=%d, Misses=%d, Hit Rate=%.1f%%, Total Entries=%d, Invalidations=%d",
-		metrics.Hits, metrics.Misses, metrics.HitRate, metrics.TotalEntries, metrics.Invalidations)
+	if metrics.IsWarmed && (metrics.WarmHits+metrics.WarmMisses) > 0 {
+		logger.Debug("Cache stats: Warm Hit Rate=%.1f%% (%d hits, %d misses), Total Entries=%d, Invalidations=%d",
+			metrics.WarmHitRate, metrics.WarmHits, metrics.WarmMisses, metrics.TotalEntries, metrics.Invalidations)
+	} else {
+		logger.Debug("Cache stats: Total Hit Rate=%.1f%% (%d hits, %d misses), Total Entries=%d, Invalidations=%d",
+			metrics.HitRate, metrics.Hits, metrics.Misses, metrics.TotalEntries, metrics.Invalidations)
+	}
+}
+
+func (fc *FileCache) LogWarmStats() {
+	metrics := fc.GetMetrics()
+	if !metrics.IsWarmed {
+		logger.Debug("Cache not yet warmed, no warm statistics available")
+		return
+	}
+
+	warmTotal := metrics.WarmHits + metrics.WarmMisses
+	if warmTotal > 0 {
+		logger.Info("Warm cache performance: %.1f%% hit rate (%d hits, %d misses)",
+			metrics.WarmHitRate, metrics.WarmHits, metrics.WarmMisses)
+	} else {
+		logger.Debug("No warm cache operations yet")
+	}
 }
 
 func (fc *FileCache) isExpired(entry *models.CacheEntry) bool {
@@ -158,14 +179,33 @@ func (fc *FileCache) evictOldest() {
 	}
 }
 
+func (fc *FileCache) MarkWarmed() {
+	fc.mutex.Lock()
+	defer fc.mutex.Unlock()
+	fc.metrics.IsWarmed = true
+	logger.Debug("Cache warmed with %d entries", len(fc.entries))
+}
+
+func (fc *FileCache) IsWarmed() bool {
+	fc.mutex.RLock()
+	defer fc.mutex.RUnlock()
+	return fc.metrics.IsWarmed
+}
+
 func (fc *FileCache) incrementHits() {
 	fc.mutex.Lock()
 	defer fc.mutex.Unlock()
 	fc.metrics.Hits++
+	if fc.metrics.IsWarmed {
+		fc.metrics.WarmHits++
+	}
 }
 
 func (fc *FileCache) incrementMisses() {
 	fc.mutex.Lock()
 	defer fc.mutex.Unlock()
 	fc.metrics.Misses++
+	if fc.metrics.IsWarmed {
+		fc.metrics.WarmMisses++
+	}
 }
