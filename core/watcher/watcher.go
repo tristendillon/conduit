@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/tristendillon/conduit/core/cache"
 	"github.com/tristendillon/conduit/core/logger"
 	"github.com/tristendillon/conduit/core/models"
 )
@@ -56,6 +57,14 @@ func (fw *FileWatcherImpl) Watch() error {
 			}
 
 			logger.Debug("File event: %s %s", event.Op, event.Name)
+
+			if strings.HasSuffix(event.Name, "route.go") {
+				fileCache := cache.GetCache()
+				if event.Has(fsnotify.Write) || event.Has(fsnotify.Remove) {
+					fileCache.InvalidateFile(event.Name)
+					logger.Debug("Invalidated cache for route file: %s", event.Name)
+				}
+			}
 
 			if event.Has(fsnotify.Create) {
 				if stat, err := os.Stat(event.Name); err == nil && stat.IsDir() {

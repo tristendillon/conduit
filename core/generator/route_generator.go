@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/tristendillon/conduit/core/cache"
 	"github.com/tristendillon/conduit/core/config"
 	"github.com/tristendillon/conduit/core/logger"
 	"github.com/tristendillon/conduit/core/models"
@@ -43,6 +44,10 @@ func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
 	if err := engine.GenerateFile(template_engine.TEMPLATES.DEV.GEN_ROUTES_GO, outputPath, templateData); err != nil {
 		return fmt.Errorf("failed to generate routes file: %w", err)
 	}
+
+	// Log cache statistics after generation
+	fileCache := cache.GetCache()
+	fileCache.LogStats()
 
 	return nil
 }

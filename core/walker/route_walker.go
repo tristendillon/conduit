@@ -4,8 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/tristendillon/conduit/core/ast"
+	"github.com/tristendillon/conduit/core/cache"
 	"github.com/tristendillon/conduit/core/config"
 	"github.com/tristendillon/conduit/core/logger"
 	"github.com/tristendillon/conduit/core/models"
@@ -43,8 +45,12 @@ func NewRouteWalker() *RouteWalkerImpl {
 }
 
 func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
+	startTime := time.Now()
 	w.RouteTree.Reset()
 	var discovered []models.DiscoveredFile
+	fileCache := cache.GetCache()
+
+	var cacheHits, cacheMisses int
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -71,17 +77,39 @@ func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
 
 		routeFile := filepath.Join(path, "route.go")
 		if _, err := os.Stat(routeFile); err == nil {
-			parsed, err := ast.ParseRoute(routeFile, relPath)
-			if err != nil {
-				return err
-			}
+			if cachedParsed, found := fileCache.ValidateAndGet(routeFile); found {
+				w.RouteTree.AddRoute(cachedParsed)
+				logger.Debug("Using cached route: %s (methods: %v)", relPath, cachedParsed.Methods)
+				cacheHits++
+			} else {
+				parsed, err := ast.ParseRoute(routeFile, relPath)
+				if err != nil {
+					logger.Debug("Failed to parse route %s: %v", routeFile, err)
+					return err
+				}
 
-			w.RouteTree.AddRoute(parsed)
-			logger.Debug("Registered route: %s (methods: %v)", relPath, parsed.Methods)
+				if err := fileCache.Set(routeFile, parsed); err != nil {
+					logger.Debug("Failed to cache parsed route %s: %v", routeFile, err)
+				}
+
+				w.RouteTree.AddRoute(parsed)
+				logger.Debug("Parsed and registered route: %s (methods: %v)", relPath, parsed.Methods)
+				cacheMisses++
+			}
 		}
 
 		return nil
 	})
+
+	walkDuration := time.Since(startTime)
+	totalRoutes := cacheHits + cacheMisses
+	logger.Debug("Walk completed in %v: %d routes (%d cached, %d parsed)",
+		walkDuration, totalRoutes, cacheHits, cacheMisses)
+
+	if totalRoutes > 0 {
+		cacheHitRate := float64(cacheHits) / float64(totalRoutes) * 100
+		logger.Debug("Cache performance: %.1f%% hit rate", cacheHitRate)
+	}
 
 	return discovered, err
 }
