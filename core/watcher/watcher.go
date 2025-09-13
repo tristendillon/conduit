@@ -25,8 +25,8 @@ type FileWatcherImpl struct {
 	FileWatcher *models.FileWatcher
 }
 
-func NewFileWatcher(rootDir string) (*FileWatcherImpl, error) {
-	fw, err := models.NewFileWatcher(rootDir)
+func NewFileWatcher(rootDir string, excludePaths []string) (*FileWatcherImpl, error) {
+	fw, err := models.NewFileWatcher(rootDir, excludePaths)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file watcher: %w", err)
 	}
@@ -110,6 +110,7 @@ func (fw *FileWatcherImpl) Close() error {
 
 func (fw *FileWatcherImpl) shouldExcludePath(path string) bool {
 	relPath, err := filepath.Rel(fw.FileWatcher.RootDir, path)
+	logger.Debug("shouldExcludePath: %s %s", relPath, fw.FileWatcher.ExcludePaths)
 	if err != nil {
 		return false
 	}

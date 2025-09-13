@@ -6,89 +6,99 @@ import "embed"
 //go:embed templates/* templates/**/_*/**/*
 var TemplateFS embed.FS
 
+type DevTemplates struct {
+	Ref           TemplateRef
+	GEN_ROUTES_GO TemplateRef
+}
+
 type InitApiTemplates struct {
 	Ref TemplateRef
-	V1 InitApiV1Templates
+	V1  InitApiV1Templates
 }
 
 type InitApiV1ProfilesIdTemplates struct {
-	Ref TemplateRef
+	Ref      TemplateRef
 	ROUTE_GO TemplateRef
 }
 
 type InitApiV1ProfilesProfile_repoTemplates struct {
-	Ref TemplateRef
+	Ref          TemplateRef
 	PROFILE_REPO TemplateRef
 }
 
 type InitApiV1ProfilesTemplates struct {
-	Ref TemplateRef
-	ID InitApiV1ProfilesIdTemplates
+	Ref          TemplateRef
+	ID           InitApiV1ProfilesIdTemplates
 	PROFILE_REPO InitApiV1ProfilesProfile_repoTemplates
-	ROUTE_GO TemplateRef
+	ROUTE_GO     TemplateRef
 }
 
 type InitApiV1Templates struct {
-	Ref TemplateRef
+	Ref      TemplateRef
 	PROFILES InitApiV1ProfilesTemplates
 }
 
 type InitTemplates struct {
-	Ref TemplateRef
-	API InitApiTemplates
+	Ref          TemplateRef
+	API          InitApiTemplates
 	CONDUIT_YAML TemplateRef
-	GO_MOD TemplateRef
-	README_MD TemplateRef
-	_CONDUIT Init_conduitTemplates
+	GO_MOD       TemplateRef
+	README_MD    TemplateRef
+	_CONDUIT     Init_conduitTemplates
 }
 
 type Init_conduitHealthTemplates struct {
-	Ref TemplateRef
+	Ref   TemplateRef
 	ROUTE TemplateRef
 }
 
 type Init_conduitTemplates struct {
-	Ref TemplateRef
+	Ref    TemplateRef
 	HEALTH Init_conduitHealthTemplates
 }
 
 type TemplateRefs struct {
-	Ref TemplateRef
+	Ref  TemplateRef
+	DEV  DevTemplates
 	INIT InitTemplates
 }
 
 // TEMPLATES provides type-safe access to all template references
 var TEMPLATES = TemplateRefs{
 	Ref: TemplateRef{Path: "", IsDir: true},
+	DEV: DevTemplates{
+		Ref:           TemplateRef{Path: "dev", IsDir: true},
+		GEN_ROUTES_GO: TemplateRef{Path: "dev/gen_routes.go.tmpl", IsDir: false},
+	},
 	INIT: InitTemplates{
-	Ref: TemplateRef{Path: "init", IsDir: true},
-	API: InitApiTemplates{
-	Ref: TemplateRef{Path: "init/api", IsDir: true},
-	V1: InitApiV1Templates{
-	Ref: TemplateRef{Path: "init/api/v1", IsDir: true},
-	PROFILES: InitApiV1ProfilesTemplates{
-	Ref: TemplateRef{Path: "init/api/v1/profiles", IsDir: true},
-	ID: InitApiV1ProfilesIdTemplates{
-	Ref: TemplateRef{Path: "init/api/v1/profiles/id_", IsDir: true},
-	ROUTE_GO: TemplateRef{Path: "init/api/v1/profiles/id_/route.go.tmpl", IsDir: false},
-	},
-	PROFILE_REPO: InitApiV1ProfilesProfile_repoTemplates{
-	Ref: TemplateRef{Path: "init/api/v1/profiles/profile_repo", IsDir: true},
-	PROFILE_REPO: TemplateRef{Path: "init/api/v1/profiles/profile_repo/profile_repo.go", IsDir: false},
-	},
-	ROUTE_GO: TemplateRef{Path: "init/api/v1/profiles/route.go.tmpl", IsDir: false},
-	},
-	},
-	},
-	CONDUIT_YAML: TemplateRef{Path: "init/conduit.yaml.tmpl", IsDir: false},
-	GO_MOD: TemplateRef{Path: "init/go.mod.tmpl", IsDir: false},
-	README_MD: TemplateRef{Path: "init/README.md.tmpl", IsDir: false},
-	_CONDUIT: Init_conduitTemplates{
-	Ref: TemplateRef{Path: "init/__conduit", IsDir: true},
-	HEALTH: Init_conduitHealthTemplates{
-	Ref: TemplateRef{Path: "init/__conduit/health", IsDir: true},
-	ROUTE: TemplateRef{Path: "init/__conduit/health/route.go", IsDir: false},
-	},
-	},
+		Ref: TemplateRef{Path: "init", IsDir: true},
+		API: InitApiTemplates{
+			Ref: TemplateRef{Path: "init/api", IsDir: true},
+			V1: InitApiV1Templates{
+				Ref: TemplateRef{Path: "init/api/v1", IsDir: true},
+				PROFILES: InitApiV1ProfilesTemplates{
+					Ref: TemplateRef{Path: "init/api/v1/profiles", IsDir: true},
+					ID: InitApiV1ProfilesIdTemplates{
+						Ref:      TemplateRef{Path: "init/api/v1/profiles/id_", IsDir: true},
+						ROUTE_GO: TemplateRef{Path: "init/api/v1/profiles/id_/route.go.tmpl", IsDir: false},
+					},
+					PROFILE_REPO: InitApiV1ProfilesProfile_repoTemplates{
+						Ref:          TemplateRef{Path: "init/api/v1/profiles/profile_repo", IsDir: true},
+						PROFILE_REPO: TemplateRef{Path: "init/api/v1/profiles/profile_repo/profile_repo.go", IsDir: false},
+					},
+					ROUTE_GO: TemplateRef{Path: "init/api/v1/profiles/route.go.tmpl", IsDir: false},
+				},
+			},
+		},
+		CONDUIT_YAML: TemplateRef{Path: "init/conduit.yaml.tmpl", IsDir: false},
+		GO_MOD:       TemplateRef{Path: "init/go.mod.tmpl", IsDir: false},
+		README_MD:    TemplateRef{Path: "init/README.md.tmpl", IsDir: false},
+		_CONDUIT: Init_conduitTemplates{
+			Ref: TemplateRef{Path: "init/__conduit", IsDir: true},
+			HEALTH: Init_conduitHealthTemplates{
+				Ref:   TemplateRef{Path: "init/__conduit/health", IsDir: true},
+				ROUTE: TemplateRef{Path: "init/__conduit/health/route.go", IsDir: false},
+			},
+		},
 	},
 }

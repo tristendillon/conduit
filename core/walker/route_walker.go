@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/tristendillon/conduit/core/ast"
+	"github.com/tristendillon/conduit/core/config"
 	"github.com/tristendillon/conduit/core/logger"
 	"github.com/tristendillon/conduit/core/models"
 )
@@ -19,13 +20,24 @@ type RouteWalkerImpl struct {
 	Exclude   []string
 }
 
+func getExcludePaths() []string {
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Debug("Failed to load config: %v", err)
+	}
+	return []string{
+		".git", "node_modules", "vendor", ".next",
+		"build", "dist", "__pycache__", ".DS_Store",
+		cfg.Codegen.Go.Output,
+		cfg.Codegen.Typescript.Output,
+	}
+}
+
 func NewRouteWalker() *RouteWalkerImpl {
+	exclude := getExcludePaths()
 	return &RouteWalkerImpl{
 		RouteTree: models.NewRouteTree(),
-		Exclude: []string{
-			".git", "node_modules", "vendor", ".next",
-			"build", "dist", "__pycache__", ".DS_Store",
-		},
+		Exclude:   exclude,
 	}
 }
 

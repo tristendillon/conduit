@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/tristendillon/conduit/core/generator"
 	"github.com/tristendillon/conduit/core/logger"
-	"github.com/tristendillon/conduit/core/walker"
 )
 
 var generateCmd = &cobra.Command{
@@ -23,13 +23,11 @@ var generateCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get working directory: %w", err)
 		}
-		logger.Debug("Working directory: %s", wd)
-		walker := walker.NewRouteWalker()
-		if _, err := walker.Walk(wd); err != nil {
-			return fmt.Errorf("failed to walk directory: %w", err)
-		}
 
-		walker.RouteTree.PrintTree(logger.INFO)
+		generator := generator.NewRouteGenerator(wd)
+		if err := generator.GenerateRouteTree(); err != nil {
+			return fmt.Errorf("failed to generate route tree: %w", err)
+		}
 
 		return nil
 	},
