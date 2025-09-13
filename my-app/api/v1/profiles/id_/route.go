@@ -3,7 +3,7 @@ package id_
 import (
 	"encoding/json"
 	"net/http"
-	"{{.ModuleName}}/api/v1/profiles/profile_repo"
+	"my-app/api/v1/profiles/profile_repo"
 )
 
 type Profile struct {

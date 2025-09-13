@@ -48,7 +48,6 @@ var initCmd = &cobra.Command{
 		fmt.Printf("Successfully generated project: %s\n", dir)
 
 		failure := false
-		fmt.Println("Attempting to install dependencies...")
 		if err := exec.Command("go", "mod", "tidy").Run(); err != nil {
 			fmt.Printf("Failed to install dependencies: %v\n", err)
 			failure = true

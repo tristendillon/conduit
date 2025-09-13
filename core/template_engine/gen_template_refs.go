@@ -18,7 +18,7 @@ type InitApiV1ProfilesIdTemplates struct {
 
 type InitApiV1ProfilesProfile_repoTemplates struct {
 	Ref TemplateRef
-	PROFILE_REPO_GO TemplateRef
+	PROFILE_REPO TemplateRef
 }
 
 type InitApiV1ProfilesTemplates struct {
@@ -44,7 +44,7 @@ type InitTemplates struct {
 
 type Init_conduitHealthTemplates struct {
 	Ref TemplateRef
-	ROUTE_GO TemplateRef
+	ROUTE TemplateRef
 }
 
 type Init_conduitTemplates struct {
@@ -74,7 +74,7 @@ var TEMPLATES = TemplateRefs{
 	},
 	PROFILE_REPO: InitApiV1ProfilesProfile_repoTemplates{
 	Ref: TemplateRef{Path: "init/api/v1/profiles/profile_repo", IsDir: true},
-	PROFILE_REPO_GO: TemplateRef{Path: "init/api/v1/profiles/profile_repo/profile_repo.go.tmpl", IsDir: false},
+	PROFILE_REPO: TemplateRef{Path: "init/api/v1/profiles/profile_repo/profile_repo.go", IsDir: false},
 	},
 	ROUTE_GO: TemplateRef{Path: "init/api/v1/profiles/route.go.tmpl", IsDir: false},
 	},
@@ -87,7 +87,7 @@ var TEMPLATES = TemplateRefs{
 	Ref: TemplateRef{Path: "init/__conduit", IsDir: true},
 	HEALTH: Init_conduitHealthTemplates{
 	Ref: TemplateRef{Path: "init/__conduit/health", IsDir: true},
-	ROUTE_GO: TemplateRef{Path: "init/__conduit/health/route.go.tmpl", IsDir: false},
+	ROUTE: TemplateRef{Path: "init/__conduit/health/route.go", IsDir: false},
 	},
 	},
 	},

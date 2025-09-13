@@ -1,4 +1,4 @@
-name: {{.ModuleName}}
+name: my-app
 
 config:
   server:

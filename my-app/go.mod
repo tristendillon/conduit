@@ -1,10 +1,8 @@
-module {{.ModuleName}}
+module my-app
 
 go 1.25.0
 
-require (
-	github.com/tristendillon/conduit v0.0.1
-)
+require github.com/tristendillon/conduit v0.0.0
 
 require gopkg.in/yaml.v3 v3.0.1 // indirect
 

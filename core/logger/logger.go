@@ -217,3 +217,9 @@ func Error(format string, args ...interface{}) {
 func Fatal(format string, args ...interface{}) {
 	globalLogger.log(FATAL, format, args...)
 }
+
+func GetLogFromLevel(level LogLevel) func(format string, args ...interface{}) {
+	return func(format string, args ...interface{}) {
+		globalLogger.log(level, format, args...)
+	}
+}
