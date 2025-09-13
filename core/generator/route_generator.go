@@ -21,12 +21,12 @@ func NewRouteGenerator(wd string) *RouteGenerator {
 	return &RouteGenerator{wd: wd, Walker: walker}
 }
 
-func (rg *RouteGenerator) GenerateRouteTree() error {
+func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
 	walker := rg.Walker
 	if _, err := walker.Walk(rg.wd); err != nil {
 		return fmt.Errorf("failed to walk directory: %w", err)
 	}
-	walker.RouteTree.PrintTree(logger.INFO)
+	walker.RouteTree.PrintTree(logLevel)
 
 	templateData := struct {
 		Routes []models.Route

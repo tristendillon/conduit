@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/tristendillon/conduit/core/generator"
@@ -33,11 +34,18 @@ var devCmd = &cobra.Command{
 			logger.Info("File watcher started, watching directory: %s", wd)
 			logger.Info("Press Ctrl+C to stop...")
 
-			return generator.GenerateRouteTree()
+			return generator.GenerateRouteTree(logger.DEBUG)
 		})
 		fw.FileWatcher.AddOnChangeFunc(func() error {
+			startTime := time.Now()
 			logger.Info("File changes detected, regenerating...")
-			return generator.GenerateRouteTree()
+			err := generator.GenerateRouteTree(logger.DEBUG)
+			if err != nil {
+				logger.Error("Failed to generate route tree: %v", err)
+				return err
+			}
+			logger.Info("Route tree generated successfully in %dms", time.Since(startTime).Milliseconds())
+			return nil
 		})
 		fw.FileWatcher.AddOnCloseFunc(func() error {
 			logger.Info("File watcher closed")

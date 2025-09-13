@@ -110,16 +110,19 @@ func (fw *FileWatcherImpl) Close() error {
 
 func (fw *FileWatcherImpl) shouldExcludePath(path string) bool {
 	relPath, err := filepath.Rel(fw.FileWatcher.RootDir, path)
-	logger.Debug("shouldExcludePath: %s %s", relPath, fw.FileWatcher.ExcludePaths)
 	if err != nil {
 		return false
 	}
 
+	relPath = filepath.Clean(relPath)
+
 	for _, excludePath := range fw.FileWatcher.ExcludePaths {
-		if strings.HasPrefix(relPath, excludePath) {
+		excludePath = filepath.Clean(excludePath)
+
+		if relPath == excludePath {
 			return true
 		}
-		if strings.Contains(relPath, string(filepath.Separator)+excludePath+string(filepath.Separator)) {
+		if strings.HasPrefix(relPath, excludePath+string(filepath.Separator)) {
 			return true
 		}
 	}

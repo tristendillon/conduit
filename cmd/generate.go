@@ -25,7 +25,7 @@ var generateCmd = &cobra.Command{
 		}
 
 		generator := generator.NewRouteGenerator(wd)
-		if err := generator.GenerateRouteTree(); err != nil {
+		if err := generator.GenerateRouteTree(logger.INFO); err != nil {
 			return fmt.Errorf("failed to generate route tree: %w", err)
 		}
 

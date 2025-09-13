@@ -28,6 +28,7 @@ func getExcludePaths() []string {
 	return []string{
 		".git", "node_modules", "vendor", ".next",
 		"build", "dist", "__pycache__", ".DS_Store",
+		".conduit", // default output directory for conduit
 		cfg.Codegen.Go.Output,
 		cfg.Codegen.Typescript.Output,
 	}

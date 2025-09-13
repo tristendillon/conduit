@@ -42,12 +42,9 @@ func ParseRoute(path, relPath string) (*models.ParsedFile, error) {
 		return nil, err
 	}
 
-	parsed := &models.ParsedFile{
-		Path:        path,
-		PackageName: f.Name.Name,
-		Methods:     []string{},
-		RelPath:     relPath,
-	}
+	methods := []string{}
+
+	logger.Debug("Parsing %s with methods %v already existing", relPath, methods)
 
 	for _, decl := range f.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
@@ -60,9 +57,16 @@ func ParseRoute(path, relPath string) (*models.ParsedFile, error) {
 
 		switch upper {
 		case "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD":
-			parsed.Methods = append(parsed.Methods, upper)
+			methods = append(methods, upper)
 			logger.Debug("Found method %s in %s", upper, relPath)
 		}
+	}
+
+	parsed := &models.ParsedFile{
+		Path:        path,
+		PackageName: f.Name.Name,
+		Methods:     methods,
+		RelPath:     relPath,
 	}
 
 	return parsed, nil
