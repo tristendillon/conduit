@@ -3,30 +3,55 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/tristendillon/conduit/core/logger"
+	"github.com/tristendillon/conduit/core/walker"
+	"github.com/tristendillon/conduit/core/watcher"
 )
 
-// devCmd represents the dev command
 var devCmd = &cobra.Command{
 	Use:   "dev",
 	Short: "Run the dev command",
 	Long:  "Looks for a main.go file in the current directory and reports its status.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger.SetVerbose(verbose)
+		logger.Debug("dev called")
 		wd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("failed to get working directory: %w", err)
 		}
+		logger.Debug("Working directory: %s", wd)
+		generateFunc := func(wd string) error {
+			walker := walker.NewRouteWalker()
+			if _, err := walker.Walk(wd); err != nil {
+				return fmt.Errorf("failed to walk directory: %w", err)
+			}
 
-		mainPath := filepath.Join(wd, "main.go")
-		if _, err := os.Stat(mainPath); os.IsNotExist(err) {
-			return fmt.Errorf("main.go not found in %s", wd)
-		} else if err != nil {
-			return fmt.Errorf("error checking for main.go: %w", err)
+			walker.RouteTree.PrintTree(logger.DEBUG)
+			return nil
 		}
 
-		fmt.Printf("✅ Found main.go at %s\n", mainPath)
+		fw, err := watcher.NewFileWatcher(wd)
+		if err != nil {
+			return fmt.Errorf("failed to create file watcher: %w", err)
+		}
+		fw.FileWatcher.AddOnStartFunc(func() error {
+			logger.Info("File watcher started, watching directory: %s", wd)
+			logger.Info("Press Ctrl+C to stop...")
+			return generateFunc(wd)
+		})
+		fw.FileWatcher.AddOnChangeFunc(func() error {
+			logger.Info("File changes detected, regenerating...")
+			return generateFunc(wd)
+		})
+		fw.FileWatcher.AddOnCloseFunc(func() error {
+			logger.Info("File watcher closed")
+			return nil
+		})
+		if err := fw.Watch(); err != nil {
+			return fmt.Errorf("failed to watch directory: %w", err)
+		}
 		return nil
 	},
 }

@@ -60,7 +60,6 @@ func Load() (*Config, error) {
 	if filePath == "" {
 		logger.Debug("No config file found, using default config")
 		config := Default()
-		logger.Debug("Default config: %+v", config)
 		return config, nil
 	}
 

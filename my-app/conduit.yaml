@@ -1,11 +1,10 @@
-name: my-app
+app_name: my-app
 
-config:
-  server:
-    host: "localhost"
-    port: 8080
-  codegen:
-    go:
-      output: "./.conduit/go"
-    typescript:
-      output: "./.conduit/ts"
+server:
+  host: "localhost"
+  port: 8080
+codegen:
+  go:
+    output: "./.conduit/go"
+  typescript:
+    output: "./.conduit/ts"
