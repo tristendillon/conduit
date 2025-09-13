@@ -43,6 +43,7 @@ func NewRouteWalker() *RouteWalkerImpl {
 }
 
 func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
+	w.RouteTree.Reset()
 	var discovered []models.DiscoveredFile
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {

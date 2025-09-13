@@ -57,6 +57,19 @@ func NewRouteTree() *RouteTree {
 	}
 }
 
+func (rt *RouteTree) Reset() {
+	rt.Root = &RouteNode{
+		Segment:    RouteSegment{Name: "", APIName: ""},
+		Children:   make(map[string]*RouteNode),
+		FullPath:   "",
+		FolderPath: "",
+		Depth:      0,
+		Methods:    []string{},
+		ParsedFile: nil,
+	}
+	rt.Routes = []Route{}
+}
+
 func ParseSegment(folderName string) RouteSegment {
 	segment := RouteSegment{Name: folderName}
 	if strings.HasSuffix(folderName, "_") {
