@@ -42,7 +42,6 @@ type InitApiV1Templates struct {
 
 type InitTemplates struct {
 	Ref TemplateRef
-	 TemplateRef
 	API InitApiTemplates
 	CONDUIT_YAML TemplateRef
 	GO_MOD TemplateRef

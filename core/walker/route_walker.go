@@ -83,10 +83,10 @@ func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
 				logger.Debug("Using cached route: %s (methods: %v)", relPath, cachedParsed.Methods)
 				cacheHits++
 			} else {
-				parsed, err := ast.ParseRoute(routeFile, relPath)
+				parsed, err := ast.ParseRouteWithFunctions(routeFile, relPath)
 				if err != nil {
 					logger.Debug("Failed to parse route %s: %v, skipping", routeFile, err)
-					return nil // Continue walking instead of failing completely
+					return nil
 				}
 
 				// Always cache the parsed result (even if it's empty due to invalid syntax)

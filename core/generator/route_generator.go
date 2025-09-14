@@ -26,14 +26,12 @@ func NewRouteGenerator(wd string) *RouteGenerator {
 }
 
 func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
-	// 1. Walk and build route tree (existing logic)
 	walker := rg.Walker
 	if _, err := walker.Walk(rg.wd); err != nil {
 		return fmt.Errorf("failed to walk directory: %w", err)
 	}
 	walker.RouteTree.PrintTree(logLevel)
 
-	// 2. Calculate output paths for all routes
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to get config: %w", err)
@@ -44,17 +42,14 @@ func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
 		return fmt.Errorf("failed to calculate output paths: %w", err)
 	}
 
-	// 3. Generate per-route files
 	if err := rg.generatePerRouteFiles(walker.RouteTree.Routes); err != nil {
 		return fmt.Errorf("failed to generate per-route files: %w", err)
 	}
 
-	// 4. Generate registry aggregation file
 	if err := rg.generateRoutesRegistry(walker.RouteTree.Routes, cfg); err != nil {
 		return fmt.Errorf("failed to generate routes registry: %w", err)
 	}
 
-	// 5. Log cache statistics after generation
 	fileCache := cache.GetCache()
 	fileCache.LogStats()
 
@@ -62,7 +57,6 @@ func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
 }
 
 func (rg *RouteGenerator) getModuleName() string {
-	// Extract module name from go.mod file
 	goModPath := filepath.Join(rg.wd, "go.mod")
 	content, err := os.ReadFile(goModPath)
 	if err != nil {
@@ -86,13 +80,11 @@ func (rg *RouteGenerator) generatePerRouteFiles(routes []models.Route) error {
 	engine := template_engine.NewTemplateEngine()
 
 	for _, route := range routes {
-		// Check if generation needed (leverage existing cache system)
 		if !rg.needsRegeneration(route) {
 			logger.Debug("Skipping unchanged route: %s", route.FolderPath)
 			continue
 		}
 
-		// Prepare template data
 		templateData := struct {
 			Route      models.Route
 			ModuleName string
@@ -103,7 +95,6 @@ func (rg *RouteGenerator) generatePerRouteFiles(routes []models.Route) error {
 			Timestamp:  time.Now(),
 		}
 
-		// Generate using template reference system
 		if err := engine.GenerateFile(template_engine.TEMPLATES.DEV.GEN_ROUTE_GO, route.OutputPath, templateData); err != nil {
 			return fmt.Errorf("failed to generate route file %s: %w", route.OutputPath, err)
 		}
@@ -117,7 +108,6 @@ func (rg *RouteGenerator) generatePerRouteFiles(routes []models.Route) error {
 func (rg *RouteGenerator) generateRoutesRegistry(routes []models.Route, cfg *config.Config) error {
 	engine := template_engine.NewTemplateEngine()
 
-	// Prepare registry template data
 	templateData := struct {
 		Routes      []models.Route
 		PackageName string
@@ -125,12 +115,11 @@ func (rg *RouteGenerator) generateRoutesRegistry(routes []models.Route, cfg *con
 		Timestamp   time.Time
 	}{
 		Routes:      routes,
-		PackageName: "generated", // Or extract from config
+		PackageName: "generated",
 		ModuleName:  rg.getModuleName(),
 		Timestamp:   time.Now(),
 	}
 
-	// Generate registry file
 	registryPath := filepath.Join(cfg.Codegen.Go.Output, "routes_registry.go")
 	if err := engine.GenerateFile(template_engine.TEMPLATES.DEV.ROUTES_REGISTRY_GO, registryPath, templateData); err != nil {
 		return fmt.Errorf("failed to generate routes registry: %w", err)
@@ -141,16 +130,10 @@ func (rg *RouteGenerator) generateRoutesRegistry(routes []models.Route, cfg *con
 }
 
 func (rg *RouteGenerator) needsRegeneration(route models.Route) bool {
-	// Check if output file exists
 	if _, err := os.Stat(route.OutputPath); os.IsNotExist(err) {
-		return true // Output doesn't exist, need to generate
+		return true
 	}
 
-	// Check if source file changed since last generation
 	fileCache := cache.GetCache()
-	if fileCache.HasContentChanged(route.ParsedFile.Path) {
-		return true // Source changed, need to regenerate
-	}
-
-	return false // No changes needed
+	return fileCache.HasContentChanged(route.ParsedFile.Path)
 }

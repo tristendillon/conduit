@@ -37,11 +37,10 @@ type Route struct {
 	Methods    []string
 	ParsedFile *ParsedFile
 
-	// Per-route generation fields
-	OutputPath     string // Full path to generated file
-	ImportPath     string // Go import path for this route
-	RelativeOutput string // Relative path within output directory
-	PackageAlias   string // Safe package alias for imports (e.g., "users_route")
+	OutputPath     string
+	ImportPath     string
+	RelativeOutput string
+	PackageAlias   string
 }
 
 type RouteTree struct {
@@ -157,10 +156,20 @@ func (rt *RouteTree) AddRoute(parsed *ParsedFile) {
 
 func (rt *RouteTree) CalculateOutputPaths(cfg *config.Config, moduleName string) error {
 	for i, route := range rt.Routes {
-		// Calculate paths based on route structure
 		rt.Routes[i].RelativeOutput = filepath.Join("routes", route.FolderPath, "gen_route.go")
 		rt.Routes[i].OutputPath = filepath.Join(cfg.Codegen.Go.Output, rt.Routes[i].RelativeOutput)
-		rt.Routes[i].ImportPath = fmt.Sprintf("%s/%s/routes/%s", moduleName, cfg.Codegen.Go.Output, route.FolderPath)
+
+		cleanOutput := filepath.Clean(cfg.Codegen.Go.Output)
+		if cleanOutput == "." {
+			cleanOutput = ""
+		}
+
+		if cleanOutput == "" {
+			rt.Routes[i].ImportPath = fmt.Sprintf("%s/routes/%s", moduleName, route.FolderPath)
+		} else {
+			rt.Routes[i].ImportPath = fmt.Sprintf("%s/%s/routes/%s", moduleName, cleanOutput, route.FolderPath)
+		}
+
 		rt.Routes[i].PackageAlias = rt.generatePackageAlias(route.FolderPath)
 	}
 	return nil

@@ -5,29 +5,28 @@ package {{ .Route.ParsedFile.PackageName }}_gen
 
 import (
 	"net/http"
-
-	original "{{ .ModuleName }}/{{ .Route.FolderPath }}"
+	{{ range .Route.ParsedFile.Imports }}
+	{{ . }}
+	{{ end }}
 )
 
-{{ range .Route.Methods -}}
-// Get{{ . }}Handler returns the {{ . }} handler for this route
-func Get{{ . }}Handler() http.HandlerFunc {
-	return original.{{ . }}
-}
-
-// Get{{ . }}Route returns the route pattern for {{ . }} method
-func Get{{ . }}Route() string {
-	return "{{ $.Route.APIPath }}"
+{{ range .Route.ParsedFile.Functions -}}
+func {{ .Signature }} {
+{{ .Body }}
 }
 
 {{ end -}}
 
-// GetRouteMethods returns all HTTP methods supported by this route
+func SetupRoutes(mux *http.ServeMux, basePath string) {
+	{{ range .Route.ParsedFile.Functions }}
+	mux.HandleFunc("{{ .Method }} "+basePath, {{ .Name }})
+	{{ end }}
+}
+
 func GetRouteMethods() []string {
 	return []string{ {{ range $i, $method := .Route.Methods }}{{ if $i }}, {{ end }}"{{ $method }}"{{ end }} }
 }
 
-// GetRouteInfo returns metadata about this route
 func GetRouteInfo() RouteInfo {
 	return RouteInfo{
 		APIPath:    "{{ .Route.APIPath }}",
