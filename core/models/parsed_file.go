@@ -8,10 +8,11 @@ type ExtractedFunction struct {
 }
 
 type ParsedFile struct {
-	Path        string
-	RelPath     string
-	PackageName string
-	Methods     []string
-	Functions   []ExtractedFunction
-	Imports     []string
+	Path         string
+	RelPath      string
+	PackageName  string
+	Methods      []string
+	Functions    []ExtractedFunction
+	Imports      []string
+	Dependencies *DependencyAnalysis
 }

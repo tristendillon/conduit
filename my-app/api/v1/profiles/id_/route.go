@@ -1,40 +1,34 @@
 package id_
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
-	"my-app/api/v1/profiles/profile_repo"
 )
-
-type Profile struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
 
 func GET(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	profile := profile_repo.FindProfile(id)
-	if profile == nil {
-		http.Error(w, "Profile not found", http.StatusNotFound)
-		return
-	}
-	data, err := json.Marshal(profile)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
+	// profile := profile_repo.FindProfile(id)
+	// if profile == nil {
+	// 	http.Error(w, "Profile not found", http.StatusNotFound)
+	// 	return
+	// }
+	// data, err := json.Marshal(profile)
+	// if err != nil {
+	// 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	// 	return
+	// }
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	w.Write([]byte(id))
 }
 
 func DELETE(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	profile := profile_repo.DeleteProfile(id)
-	if profile == -1 {
-		http.Error(w, "Profile not found", http.StatusNotFound)
-		return
-	}
+	fmt.Println(id)
+	// profile := profile_repo.DeleteProfile(id)
+	// if profile == -1 {
+	// 	http.Error(w, "Profile not found", http.StatusNotFound)
+	// 	return
+	// }
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Successfully deleted profile"))

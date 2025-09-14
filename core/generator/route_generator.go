@@ -9,6 +9,7 @@ import (
 
 	"github.com/tristendillon/conduit/core/cache"
 	"github.com/tristendillon/conduit/core/config"
+	"github.com/tristendillon/conduit/core/dependency"
 	"github.com/tristendillon/conduit/core/logger"
 	"github.com/tristendillon/conduit/core/models"
 	"github.com/tristendillon/conduit/core/template_engine"
@@ -27,7 +28,8 @@ func NewRouteGenerator(wd string) *RouteGenerator {
 
 func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
 	walker := rg.Walker
-	if _, err := walker.Walk(rg.wd); err != nil {
+	moduleName := rg.getModuleName()
+	if _, err := walker.Walk(rg.wd, moduleName); err != nil {
 		return fmt.Errorf("failed to walk directory: %w", err)
 	}
 	walker.RouteTree.PrintTree(logLevel)
@@ -37,7 +39,7 @@ func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	moduleName := rg.getModuleName()
+	moduleName = rg.getModuleName()
 	if err := walker.RouteTree.CalculateOutputPaths(cfg, moduleName); err != nil {
 		return fmt.Errorf("failed to calculate output paths: %w", err)
 	}
@@ -78,6 +80,16 @@ func (rg *RouteGenerator) getModuleName() string {
 
 func (rg *RouteGenerator) generatePerRouteFiles(routes []models.Route) error {
 	engine := template_engine.NewTemplateEngine()
+	moduleName := rg.getModuleName()
+
+	// Load config to get output directory
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config for dependency copying: %w", err)
+	}
+
+	// Create dependency copier
+	depCopier := dependency.NewDependencyCopier(rg.wd, moduleName, cfg.Codegen.Go.Output)
 
 	for _, route := range routes {
 		if !rg.needsRegeneration(route) {
@@ -85,21 +97,36 @@ func (rg *RouteGenerator) generatePerRouteFiles(routes []models.Route) error {
 			continue
 		}
 
-		templateData := struct {
-			Route      models.Route
-			ModuleName string
-			Timestamp  time.Time
-		}{
-			Route:      route,
-			ModuleName: rg.getModuleName(),
-			Timestamp:  time.Now(),
+		// Copy dependencies if they exist
+		var copiedDependencies []models.CopiedDependency
+		if route.ParsedFile != nil && route.ParsedFile.Dependencies != nil && len(route.ParsedFile.Dependencies.LocalImports) > 0 {
+			logger.Debug("Copying dependencies for route %s", route.FolderPath)
+			copiedDeps, err := depCopier.CopyDependencies(route.ParsedFile.Dependencies)
+			if err != nil {
+				logger.Debug("Failed to copy dependencies for route %s: %v", route.FolderPath, err)
+			} else {
+				copiedDependencies = copiedDeps
+				logger.Debug("Successfully copied %d dependencies for route %s", len(copiedDeps), route.FolderPath)
+			}
 		}
 
-		if err := engine.GenerateFile(template_engine.TEMPLATES.DEV.GEN_ROUTE_GO, route.OutputPath, templateData); err != nil {
+		templateData := struct {
+			Route               models.Route
+			ModuleName          string
+			Timestamp           time.Time
+			CopiedDependencies  []models.CopiedDependency
+		}{
+			Route:               route,
+			ModuleName:          moduleName,
+			Timestamp:           time.Now(),
+			CopiedDependencies:  copiedDependencies,
+		}
+
+		if err := engine.GenerateFile(template_engine.TEMPLATES.DEV.FULL_GEN_ROUTE_GO, route.OutputPath, templateData); err != nil {
 			return fmt.Errorf("failed to generate route file %s: %w", route.OutputPath, err)
 		}
 
-		logger.Info("Generated %s for route %s", route.RelativeOutput, route.FolderPath)
+		logger.Info("Generated %s for route %s with %d dependencies", route.RelativeOutput, route.FolderPath, len(copiedDependencies))
 	}
 
 	return nil

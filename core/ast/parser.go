@@ -75,6 +75,68 @@ func extractImportsFromFile(f *ast.File) []string {
 	return imports
 }
 
+func AnalyzeDependencies(f *ast.File, moduleName string) (*models.DependencyAnalysis, error) {
+	analysis := &models.DependencyAnalysis{
+		StandardLibImports: []string{},
+		ExternalImports:    []string{},
+		LocalImports:       []models.LocalDependency{},
+	}
+
+	for _, imp := range f.Imports {
+		importPath := strings.Trim(imp.Path.Value, "\"")
+
+		// Skip template-provided imports
+		if importPath == "net/http" {
+			continue
+		}
+
+		if isStandardLibrary(importPath) {
+			analysis.StandardLibImports = append(analysis.StandardLibImports, importPath)
+		} else if strings.HasPrefix(importPath, moduleName+"/") {
+			// This is a local import within our module
+			localDep := models.LocalDependency{
+				ImportPath:    importPath,
+				RelativePath:  strings.TrimPrefix(importPath, moduleName+"/"),
+				Alias:         "",
+			}
+			if imp.Name != nil {
+				localDep.Alias = imp.Name.Name
+			}
+			analysis.LocalImports = append(analysis.LocalImports, localDep)
+		} else {
+			// External dependency (third-party)
+			analysis.ExternalImports = append(analysis.ExternalImports, importPath)
+		}
+	}
+
+	return analysis, nil
+}
+
+func isStandardLibrary(importPath string) bool {
+	// Standard library packages don't contain dots or are well-known stdlib packages
+	stdLibPrefixes := []string{
+		"bufio", "bytes", "context", "crypto", "database", "encoding", "errors",
+		"fmt", "go", "hash", "html", "image", "io", "log", "math", "net",
+		"os", "path", "reflect", "regexp", "runtime", "sort", "strconv",
+		"strings", "sync", "syscall", "testing", "text", "time", "unicode",
+	}
+
+	// If it contains a dot, it's likely external (github.com/..., etc)
+	if strings.Contains(importPath, ".") {
+		return false
+	}
+
+	// Check if it starts with known stdlib prefixes
+	for _, prefix := range stdLibPrefixes {
+		if strings.HasPrefix(importPath, prefix) {
+			return true
+		}
+	}
+
+	// If it's a simple name without dots, it's likely stdlib
+	return !strings.Contains(importPath, "/") || len(strings.Split(importPath, "/")) <= 2
+}
+
 func extractFunctionSignature(fset *token.FileSet, fn *ast.FuncDecl, src []byte) string {
 	if fn.Type == nil {
 		return ""
@@ -96,7 +158,7 @@ func extractFunctionSignature(fset *token.FileSet, fn *ast.FuncDecl, src []byte)
 	return strings.TrimSpace(string(sigBytes))
 }
 
-func ParseRouteWithFunctions(path, relPath string) (*models.ParsedFile, error) {
+func ParseRouteWithFunctions(path, relPath, moduleName string) (*models.ParsedFile, error) {
 	fset := token.NewFileSet()
 
 	src, err := os.ReadFile(path)
@@ -107,24 +169,26 @@ func ParseRouteWithFunctions(path, relPath string) (*models.ParsedFile, error) {
 	if srcStr == "" {
 		logger.Debug("Empty route file %s, skipping parsing", relPath)
 		return &models.ParsedFile{
-			Path:        path,
-			PackageName: "",
-			Methods:     []string{},
-			RelPath:     relPath,
-			Functions:   []models.ExtractedFunction{},
-			Imports:     []string{},
+			Path:         path,
+			PackageName:  "",
+			Methods:      []string{},
+			RelPath:      relPath,
+			Functions:    []models.ExtractedFunction{},
+			Imports:      []string{},
+			Dependencies: &models.DependencyAnalysis{},
 		}, nil
 	}
 
 	if !strings.Contains(srcStr, "package ") {
 		logger.Debug("Route file %s missing package declaration, skipping parsing", relPath)
 		return &models.ParsedFile{
-			Path:        path,
-			PackageName: "",
-			Methods:     []string{},
-			RelPath:     relPath,
-			Functions:   []models.ExtractedFunction{},
-			Imports:     []string{},
+			Path:         path,
+			PackageName:  "",
+			Methods:      []string{},
+			RelPath:      relPath,
+			Functions:    []models.ExtractedFunction{},
+			Imports:      []string{},
+			Dependencies: &models.DependencyAnalysis{},
 		}, nil
 	}
 
@@ -132,12 +196,13 @@ func ParseRouteWithFunctions(path, relPath string) (*models.ParsedFile, error) {
 	if err != nil {
 		logger.Debug("Failed to parse route file %s: %v - treating as empty", relPath, err)
 		return &models.ParsedFile{
-			Path:        path,
-			PackageName: "",
-			Methods:     []string{},
-			RelPath:     relPath,
-			Functions:   []models.ExtractedFunction{},
-			Imports:     []string{},
+			Path:         path,
+			PackageName:  "",
+			Methods:      []string{},
+			RelPath:      relPath,
+			Functions:    []models.ExtractedFunction{},
+			Imports:      []string{},
+			Dependencies: &models.DependencyAnalysis{},
 		}, nil
 	}
 
@@ -182,13 +247,21 @@ func ParseRouteWithFunctions(path, relPath string) (*models.ParsedFile, error) {
 		packageName = f.Name.Name
 	}
 
+	// Perform dependency analysis
+	dependencies, err := AnalyzeDependencies(f, moduleName)
+	if err != nil {
+		logger.Debug("Failed to analyze dependencies for %s: %v", relPath, err)
+		dependencies = &models.DependencyAnalysis{}
+	}
+
 	parsed := &models.ParsedFile{
-		Path:        path,
-		PackageName: packageName,
-		Methods:     methods,
-		RelPath:     relPath,
-		Functions:   functions,
-		Imports:     imports,
+		Path:         path,
+		PackageName:  packageName,
+		Methods:      methods,
+		RelPath:      relPath,
+		Functions:    functions,
+		Imports:      imports,
+		Dependencies: dependencies,
 	}
 
 	return parsed, nil

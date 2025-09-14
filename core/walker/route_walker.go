@@ -44,7 +44,7 @@ func NewRouteWalker() *RouteWalkerImpl {
 	}
 }
 
-func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
+func (w *RouteWalkerImpl) Walk(root string, moduleName string) ([]models.DiscoveredFile, error) {
 	startTime := time.Now()
 	w.RouteTree.Reset()
 	var discovered []models.DiscoveredFile
@@ -83,7 +83,7 @@ func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
 				logger.Debug("Using cached route: %s (methods: %v)", relPath, cachedParsed.Methods)
 				cacheHits++
 			} else {
-				parsed, err := ast.ParseRouteWithFunctions(routeFile, relPath)
+				parsed, err := ast.ParseRouteWithFunctions(routeFile, relPath, moduleName)
 				if err != nil {
 					logger.Debug("Failed to parse route %s: %v, skipping", routeFile, err)
 					return nil

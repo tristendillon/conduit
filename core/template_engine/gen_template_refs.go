@@ -10,6 +10,7 @@ type DevTemplates struct {
 	Ref TemplateRef
 	GEN_ROUTES_GO TemplateRef
 	GEN_ROUTE_GO TemplateRef
+	FULL_GEN_ROUTE_GO TemplateRef
 	ROUTES_REGISTRY_GO TemplateRef
 }
 
@@ -72,6 +73,7 @@ var TEMPLATES = TemplateRefs{
 	Ref: TemplateRef{Path: "dev", IsDir: true},
 	GEN_ROUTES_GO: TemplateRef{Path: "dev/gen_routes.go.tmpl", IsDir: false},
 	GEN_ROUTE_GO: TemplateRef{Path: "dev/gen_route.go.tmpl", IsDir: false},
+	FULL_GEN_ROUTE_GO: TemplateRef{Path: "dev/full_gen_route.go.tmpl", IsDir: false},
 	ROUTES_REGISTRY_GO: TemplateRef{Path: "dev/routes_registry.go.tmpl", IsDir: false},
 	},
 	INIT: InitTemplates{
