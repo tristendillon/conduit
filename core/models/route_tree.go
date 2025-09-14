@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/tristendillon/conduit/core/config"
 	"github.com/tristendillon/conduit/core/logger"
 )
 
@@ -35,6 +36,12 @@ type Route struct {
 	IsLeaf     bool
 	Methods    []string
 	ParsedFile *ParsedFile
+
+	// Per-route generation fields
+	OutputPath     string // Full path to generated file
+	ImportPath     string // Go import path for this route
+	RelativeOutput string // Relative path within output directory
+	PackageAlias   string // Safe package alias for imports (e.g., "users_route")
 }
 
 type RouteTree struct {
@@ -146,6 +153,26 @@ func (rt *RouteTree) AddRoute(parsed *ParsedFile) {
 	}
 
 	rt.Routes = append(rt.Routes, route)
+}
+
+func (rt *RouteTree) CalculateOutputPaths(cfg *config.Config, moduleName string) error {
+	for i, route := range rt.Routes {
+		// Calculate paths based on route structure
+		rt.Routes[i].RelativeOutput = filepath.Join("routes", route.FolderPath, "gen_route.go")
+		rt.Routes[i].OutputPath = filepath.Join(cfg.Codegen.Go.Output, rt.Routes[i].RelativeOutput)
+		rt.Routes[i].ImportPath = fmt.Sprintf("%s/%s/routes/%s", moduleName, cfg.Codegen.Go.Output, route.FolderPath)
+		rt.Routes[i].PackageAlias = rt.generatePackageAlias(route.FolderPath)
+	}
+	return nil
+}
+
+func (rt *RouteTree) generatePackageAlias(folderPath string) string {
+	// Convert "api/v1/users" to "api_v1_users_route"
+	// Replace slashes and other problematic characters with underscores
+	alias := strings.ReplaceAll(folderPath, "/", "_")
+	alias = strings.ReplaceAll(alias, "-", "_")
+	alias = strings.ReplaceAll(alias, " ", "_")
+	return alias + "_route"
 }
 
 func (rt *RouteTree) PrintTree(level logger.LogLevel) {
