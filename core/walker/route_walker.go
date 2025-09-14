@@ -85,16 +85,22 @@ func (w *RouteWalkerImpl) Walk(root string) ([]models.DiscoveredFile, error) {
 			} else {
 				parsed, err := ast.ParseRoute(routeFile, relPath)
 				if err != nil {
-					logger.Debug("Failed to parse route %s: %v", routeFile, err)
-					return err
+					logger.Debug("Failed to parse route %s: %v, skipping", routeFile, err)
+					return nil // Continue walking instead of failing completely
 				}
 
+				// Always cache the parsed result (even if it's empty due to invalid syntax)
+				// This prevents repeated parsing attempts on problematic files
 				if err := fileCache.Set(routeFile, parsed); err != nil {
 					logger.Debug("Failed to cache parsed route %s: %v", routeFile, err)
 				}
 
 				w.RouteTree.AddRoute(parsed)
-				logger.Debug("Parsed and registered route: %s (methods: %v)", relPath, parsed.Methods)
+				if len(parsed.Methods) > 0 {
+					logger.Debug("Parsed and registered route: %s (methods: %v)", relPath, parsed.Methods)
+				} else {
+					logger.Debug("Parsed route: %s (no methods found - may be empty or incomplete)", relPath)
+				}
 				cacheMisses++
 			}
 		}

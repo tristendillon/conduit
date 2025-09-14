@@ -60,9 +60,16 @@ func (fw *FileWatcherImpl) Watch() error {
 
 			if strings.HasSuffix(event.Name, "route.go") {
 				fileCache := cache.GetCache()
-				if event.Has(fsnotify.Write) || event.Has(fsnotify.Remove) {
+				if event.Has(fsnotify.Write) {
+					if fileCache.HasContentChanged(event.Name) {
+						fileCache.InvalidateFile(event.Name)
+						logger.Debug("Content changed, invalidated cache for route file: %s", event.Name)
+					} else {
+						logger.Debug("File modified but content unchanged, keeping cache for: %s", event.Name)
+					}
+				} else if event.Has(fsnotify.Remove) {
 					fileCache.InvalidateFile(event.Name)
-					logger.Debug("Invalidated cache for route file: %s", event.Name)
+					logger.Debug("File removed, invalidated cache for route file: %s", event.Name)
 				}
 			}
 

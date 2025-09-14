@@ -37,9 +37,38 @@ func ParseRoute(path, relPath string) (*models.ParsedFile, error) {
 		return nil, err
 	}
 
+	// Handle empty files gracefully
+	srcStr := strings.TrimSpace(string(src))
+	if srcStr == "" {
+		logger.Debug("Empty route file %s, skipping parsing", relPath)
+		return &models.ParsedFile{
+			Path:        path,
+			PackageName: "",
+			Methods:     []string{},
+			RelPath:     relPath,
+		}, nil
+	}
+
+	// Check for minimum valid Go content (at least package declaration)
+	if !strings.Contains(srcStr, "package ") {
+		logger.Debug("Route file %s missing package declaration, skipping parsing", relPath)
+		return &models.ParsedFile{
+			Path:        path,
+			PackageName: "",
+			Methods:     []string{},
+			RelPath:     relPath,
+		}, nil
+	}
+
 	f, err := parser.ParseFile(fset, path, src, parser.AllErrors)
 	if err != nil {
-		return nil, err
+		logger.Debug("Failed to parse route file %s: %v - treating as empty", relPath, err)
+		return &models.ParsedFile{
+			Path:        path,
+			PackageName: "",
+			Methods:     []string{},
+			RelPath:     relPath,
+		}, nil
 	}
 
 	methods := []string{}
@@ -62,9 +91,14 @@ func ParseRoute(path, relPath string) (*models.ParsedFile, error) {
 		}
 	}
 
+	packageName := ""
+	if f.Name != nil {
+		packageName = f.Name.Name
+	}
+
 	parsed := &models.ParsedFile{
 		Path:        path,
-		PackageName: f.Name.Name,
+		PackageName: packageName,
 		Methods:     methods,
 		RelPath:     relPath,
 	}

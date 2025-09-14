@@ -45,8 +45,8 @@ func (ce *CacheEntry) IsValid() (bool, error) {
 		return false, fmt.Errorf("failed to stat file %s: %w", ce.FilePath, err)
 	}
 
-	if !stat.ModTime().Equal(ce.ModTime) {
-		return false, nil
+	if stat.ModTime().Equal(ce.ModTime) {
+		return true, nil
 	}
 
 	currentHash, err := calculateFileHash(ce.FilePath)
@@ -54,7 +54,12 @@ func (ce *CacheEntry) IsValid() (bool, error) {
 		return false, fmt.Errorf("failed to calculate current hash for file %s: %w", ce.FilePath, err)
 	}
 
-	return currentHash == ce.FileHash, nil
+	if currentHash == ce.FileHash {
+		ce.ModTime = stat.ModTime()
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func calculateFileHash(filePath string) (string, error) {

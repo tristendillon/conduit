@@ -99,6 +99,32 @@ func (fc *FileCache) Set(filePath string, parsedFile *models.ParsedFile) error {
 	return nil
 }
 
+func (fc *FileCache) HasContentChanged(filePath string) bool {
+	fc.mutex.RLock()
+	entry, exists := fc.entries[filePath]
+	fc.mutex.RUnlock()
+
+	if !exists {
+		logger.Debug("No cache entry for %s, treating as changed", filePath)
+		return true
+	}
+
+	valid, err := entry.IsValid()
+	if err != nil {
+		logger.Debug("Error validating cache entry for %s: %v, treating as changed", filePath, err)
+		return true
+	}
+
+	hasChanged := !valid
+	if hasChanged {
+		logger.Debug("Content changed detected for %s (modtime or hash mismatch)", filePath)
+	} else {
+		logger.Debug("Content unchanged for %s (modtime and hash match)", filePath)
+	}
+
+	return hasChanged
+}
+
 func (fc *FileCache) InvalidateFile(filePath string) {
 	fc.mutex.Lock()
 	defer fc.mutex.Unlock()
@@ -117,7 +143,7 @@ func (fc *FileCache) Clear() {
 	entriesCount := len(fc.entries)
 	fc.entries = make(map[string]*models.CacheEntry)
 	fc.metrics.Invalidations += int64(entriesCount)
-	logger.Info("Cleared entire cache, invalidated %d entries", entriesCount)
+	logger.Debug("Cleared entire cache, invalidated %d entries", entriesCount)
 }
 
 func (fc *FileCache) GetMetrics() *CacheMetrics {
@@ -150,7 +176,7 @@ func (fc *FileCache) LogWarmStats() {
 
 	warmTotal := metrics.WarmHits + metrics.WarmMisses
 	if warmTotal > 0 {
-		logger.Info("Warm cache performance: %.1f%% hit rate (%d hits, %d misses)",
+		logger.Debug("Warm cache performance: %.1f%% hit rate (%d hits, %d misses)",
 			metrics.WarmHitRate, metrics.WarmHits, metrics.WarmMisses)
 	} else {
 		logger.Debug("No warm cache operations yet")
