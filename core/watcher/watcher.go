@@ -14,6 +14,8 @@ import (
 	"github.com/tristendillon/conduit/core/models"
 )
 
+var DEBOUNCE_TIME = 300 * time.Millisecond
+
 type FileWatcher interface {
 	Watch() error
 	debounceGenerate()
@@ -122,7 +124,7 @@ func (fw *FileWatcherImpl) debounceGenerate() {
 		fw.FileWatcher.DebounceTimer.Stop()
 	}
 
-	fw.FileWatcher.DebounceTimer = time.AfterFunc(500*time.Millisecond, func() {
+	fw.FileWatcher.DebounceTimer = time.AfterFunc(DEBOUNCE_TIME, func() {
 		logger.Debug("File changes detected, regenerating...")
 		if err := fw.FileWatcher.OnChange(); err != nil {
 			logger.Error("Watcher.OnChange failed: %v", err)

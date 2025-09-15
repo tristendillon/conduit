@@ -21,7 +21,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := json.Marshal(user)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error: Failed to marshal user", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -32,7 +32,7 @@ func DELETE(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	user := user_repo.DeleteUser(id)
 	if user == -1 {
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, "The user you are looking for does not exist", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusOK)

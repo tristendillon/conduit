@@ -135,6 +135,15 @@ type CacheManagerInterface interface {
 	// WarmCache initializes cache from file system
 	WarmCache(rootDir string, excludePaths []string) error
 
+	// GetRegistrySignature gets cached registry signature
+	GetRegistrySignature() (*RegistrySignature, bool)
+
+	// SetRegistrySignature stores registry signature
+	SetRegistrySignature(signature *RegistrySignature) error
+
+	// NeedsRegistryRegeneration checks if registry needs regeneration
+	NeedsRegistryRegeneration(currentRoutes []string) (bool, error)
+
 	// Clear resets all cache layers
 	Clear() error
 }

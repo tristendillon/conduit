@@ -1,13 +1,16 @@
 package generator
 
 import (
+	"crypto/md5"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/tristendillon/conduit/core/cache"
+	cacheModels "github.com/tristendillon/conduit/core/cache/models"
 	"github.com/tristendillon/conduit/core/config"
 	"github.com/tristendillon/conduit/core/dependency"
 	"github.com/tristendillon/conduit/core/logger"
@@ -48,8 +51,13 @@ func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
 		return fmt.Errorf("failed to generate per-route files: %w", err)
 	}
 
-	if err := rg.generateRoutesRegistry(walker.RouteTree.Routes, cfg); err != nil {
-		return fmt.Errorf("failed to generate routes registry: %w", err)
+	// Only generate routes registry if needed
+	if rg.needsRegistryRegeneration(walker.RouteTree.Routes) {
+		if err := rg.generateRoutesRegistry(walker.RouteTree.Routes, cfg); err != nil {
+			return fmt.Errorf("failed to generate routes registry: %w", err)
+		}
+	} else {
+		logger.Debug("Routes registry is up to date, skipping generation")
 	}
 
 	cacheManager := cache.GetCacheManager()
@@ -137,7 +145,7 @@ func (rg *RouteGenerator) generatePerRouteFiles(routes []models.Route) error {
 			logger.Debug("Failed to mark %s as generated: %v", route.ParsedFile.Path, err)
 		}
 
-		logger.Info("Generated %s for route %s with %d dependencies", route.RelativeOutput, route.FolderPath, len(copiedDependencies))
+		logger.Debug("Generated %s for route %s with %d dependencies", route.RelativeOutput, route.FolderPath, len(copiedDependencies))
 	}
 
 	return nil
@@ -163,7 +171,21 @@ func (rg *RouteGenerator) generateRoutesRegistry(routes []models.Route, cfg *con
 		return fmt.Errorf("failed to generate routes registry: %w", err)
 	}
 
-	logger.Info("Generated routes registry with %d routes", len(routes))
+	// Update registry signature in cache
+	cacheManager := cache.GetCacheManager()
+	routePaths := make([]string, len(routes))
+	for i, route := range routes {
+		routePaths[i] = route.FolderPath
+	}
+
+	// Create new signature with proper hash calculation
+	signature := rg.createRegistrySignature(routePaths)
+
+	if err := cacheManager.SetRegistrySignature(signature); err != nil {
+		logger.Debug("Failed to update registry signature: %v", err)
+	}
+
+	logger.Debug("Generated routes registry with %d routes", len(routes))
 	return nil
 }
 
@@ -194,4 +216,42 @@ func (rg *RouteGenerator) needsRegeneration(route models.Route) bool {
 
 	logger.Debug("No regeneration needed for route: %s (source: %s)", route.FolderPath, route.ParsedFile.Path)
 	return false
+}
+
+func (rg *RouteGenerator) needsRegistryRegeneration(routes []models.Route) bool {
+	cacheManager := cache.GetCacheManager()
+
+	// Extract route paths (the structural information we care about for registry)
+	routePaths := make([]string, len(routes))
+	for i, route := range routes {
+		routePaths[i] = route.FolderPath
+	}
+
+	// Check if registry needs regeneration
+	needsRegen, err := cacheManager.NeedsRegistryRegeneration(routePaths)
+	if err != nil {
+		logger.Debug("Failed to check registry regeneration: %v, assuming regeneration needed", err)
+		return true
+	}
+
+	return needsRegen
+}
+
+func (rg *RouteGenerator) createRegistrySignature(routePaths []string) *cacheModels.RegistrySignature {
+	// Sort the routes for consistent signature generation
+	sortedPaths := make([]string, len(routePaths))
+	copy(sortedPaths, routePaths)
+	sort.Strings(sortedPaths)
+
+	// Create hash from sorted route paths
+	data := strings.Join(sortedPaths, "|")
+	hash := md5.Sum([]byte(data))
+	signature := fmt.Sprintf("%x", hash)
+
+	return &cacheModels.RegistrySignature{
+		RouteCount: len(routePaths),
+		RoutePaths: sortedPaths,
+		Signature:  signature,
+		UpdatedAt:  time.Now(),
+	}
 }

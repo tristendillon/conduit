@@ -1,9 +1,11 @@
 package manager
 
 import (
+	"crypto/md5"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,10 +17,11 @@ import (
 
 // CacheManager coordinates all cache layers and provides unified interface
 type CacheManager struct {
-	content    models.ContentCacheInterface
-	parse      models.ParseCacheInterface
-	deps       models.DependencyGraphInterface
-	generation models.GenerationCacheInterface
+	content         models.ContentCacheInterface
+	parse           models.ParseCacheInterface
+	deps            models.DependencyGraphInterface
+	generation      models.GenerationCacheInterface
+	registrySignature *models.RegistrySignature
 }
 
 // NewCacheManager creates a new cache manager with default implementations
@@ -309,8 +312,69 @@ func (cm *CacheManager) Clear() error {
 		return fmt.Errorf("failed to clear generation cache: %w", err)
 	}
 
+	// Clear registry signature
+	cm.registrySignature = nil
+
 	logger.Debug("CacheManager: Cleared all cache layers")
 	return nil
+}
+
+// GetRegistrySignature gets cached registry signature
+func (cm *CacheManager) GetRegistrySignature() (*models.RegistrySignature, bool) {
+	if cm.registrySignature == nil {
+		return nil, false
+	}
+	return cm.registrySignature, true
+}
+
+// SetRegistrySignature stores registry signature
+func (cm *CacheManager) SetRegistrySignature(signature *models.RegistrySignature) error {
+	cm.registrySignature = signature
+	logger.Debug("CacheManager: Updated registry signature with %d routes", signature.RouteCount)
+	return nil
+}
+
+// NeedsRegistryRegeneration checks if registry needs regeneration
+func (cm *CacheManager) NeedsRegistryRegeneration(currentRoutes []string) (bool, error) {
+	// Get current registry signature
+	cachedSignature, exists := cm.GetRegistrySignature()
+	if !exists {
+		logger.Debug("CacheManager: No cached registry signature found, regeneration needed")
+		return true, nil
+	}
+
+	// Create current signature
+	currentSignature := cm.createRegistrySignature(currentRoutes)
+
+	// Compare signatures
+	if cachedSignature.Signature != currentSignature.Signature {
+		logger.Debug("CacheManager: Registry signature changed (%s -> %s), regeneration needed",
+			cachedSignature.Signature[:8], currentSignature.Signature[:8])
+		return true, nil
+	}
+
+	logger.Debug("CacheManager: Registry signature unchanged, no regeneration needed")
+	return false, nil
+}
+
+// createRegistrySignature generates a signature for the current route structure
+func (cm *CacheManager) createRegistrySignature(routePaths []string) *models.RegistrySignature {
+	// Sort the routes for consistent signature generation
+	sortedPaths := make([]string, len(routePaths))
+	copy(sortedPaths, routePaths)
+	sort.Strings(sortedPaths)
+
+	// Create hash from sorted route paths
+	data := strings.Join(sortedPaths, "|")
+	hash := md5.Sum([]byte(data))
+	signature := fmt.Sprintf("%x", hash)
+
+	return &models.RegistrySignature{
+		RouteCount: len(routePaths),
+		RoutePaths: sortedPaths,
+		Signature:  signature,
+		UpdatedAt:  time.Now(),
+	}
 }
 
 // Helper methods for internal use

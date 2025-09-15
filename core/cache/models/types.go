@@ -78,6 +78,14 @@ type CacheStats struct {
 	LastUpdate       time.Time `json:"last_update"`
 }
 
+// RegistrySignature represents the structural signature of the routes registry
+type RegistrySignature struct {
+	RouteCount int      `json:"route_count"`
+	RoutePaths []string `json:"route_paths"` // sorted list of route folder paths
+	Signature  string   `json:"signature"`   // hash of the structural data
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 // ChangeEvent represents a file system change
 type ChangeEvent struct {
 	FilePath  string    `json:"file_path"`
