@@ -9,6 +9,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/tristendillon/conduit/core/cache"
+	cacheModels "github.com/tristendillon/conduit/core/cache/models"
 	"github.com/tristendillon/conduit/core/logger"
 	"github.com/tristendillon/conduit/core/models"
 )
@@ -59,17 +60,37 @@ func (fw *FileWatcherImpl) Watch() error {
 			logger.Debug("File event: %s %s", event.Op, event.Name)
 
 			if strings.HasSuffix(event.Name, "route.go") {
-				fileCache := cache.GetCache()
+				cacheManager := cache.GetCacheManager()
+
+				// Create change event for the cache manager
+				var eventType string
 				if event.Has(fsnotify.Write) {
-					if fileCache.HasContentChanged(event.Name) {
-						fileCache.InvalidateFile(event.Name)
-						logger.Debug("Content changed, invalidated cache for route file: %s", event.Name)
-					} else {
-						logger.Debug("File modified but content unchanged, keeping cache for: %s", event.Name)
-					}
+					eventType = "write"
 				} else if event.Has(fsnotify.Remove) {
-					fileCache.InvalidateFile(event.Name)
-					logger.Debug("File removed, invalidated cache for route file: %s", event.Name)
+					eventType = "delete"
+				} else if event.Has(fsnotify.Create) {
+					eventType = "create"
+				}
+
+				if eventType != "" {
+					changeEvent := &cacheModels.ChangeEvent{
+						FilePath:  event.Name,
+						EventType: eventType,
+						Timestamp: time.Now(),
+					}
+
+					// Handle the file change through new cache system
+					plan, err := cacheManager.HandleFileChange(changeEvent)
+					if err != nil {
+						logger.Debug("Failed to handle file change for %s: %v", event.Name, err)
+					} else if len(plan.AffectedFiles) > 0 {
+						logger.Debug("File change detected: %s affects %d files", event.Name, len(plan.AffectedFiles))
+						for _, affected := range plan.AffectedFiles {
+							logger.Debug("  Affected: %s (%s)", affected, plan.Reasons[affected])
+						}
+					} else {
+						logger.Debug("File modified but no regeneration needed: %s", event.Name)
+					}
 				}
 			}
 

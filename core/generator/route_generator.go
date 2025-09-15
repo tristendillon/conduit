@@ -52,8 +52,13 @@ func (rg *RouteGenerator) GenerateRouteTree(logLevel logger.LogLevel) error {
 		return fmt.Errorf("failed to generate routes registry: %w", err)
 	}
 
-	fileCache := cache.GetCache()
-	fileCache.LogStats()
+	cacheManager := cache.GetCacheManager()
+
+	// Log cache statistics
+	stats := cacheManager.GetStats()
+	for layer, stat := range stats {
+		logger.Debug("%s cache stats: %d files, %.1f%% hit rate", layer, stat.TotalFiles, stat.HitRate)
+	}
 
 	return nil
 }
@@ -111,19 +116,25 @@ func (rg *RouteGenerator) generatePerRouteFiles(routes []models.Route) error {
 		}
 
 		templateData := struct {
-			Route               models.Route
-			ModuleName          string
-			Timestamp           time.Time
-			CopiedDependencies  []models.CopiedDependency
+			Route              models.Route
+			ModuleName         string
+			Timestamp          time.Time
+			CopiedDependencies []models.CopiedDependency
 		}{
-			Route:               route,
-			ModuleName:          moduleName,
-			Timestamp:           time.Now(),
-			CopiedDependencies:  copiedDependencies,
+			Route:              route,
+			ModuleName:         moduleName,
+			Timestamp:          time.Now(),
+			CopiedDependencies: copiedDependencies,
 		}
 
 		if err := engine.GenerateFile(template_engine.TEMPLATES.DEV.FULL_GEN_ROUTE_GO, route.OutputPath, templateData); err != nil {
 			return fmt.Errorf("failed to generate route file %s: %w", route.OutputPath, err)
+		}
+
+		// Mark the file as generated in the cache
+		cacheManager := cache.GetCacheManager()
+		if err := cacheManager.MarkGenerated(route.ParsedFile.Path, route.OutputPath); err != nil {
+			logger.Debug("Failed to mark %s as generated: %v", route.ParsedFile.Path, err)
 		}
 
 		logger.Info("Generated %s for route %s with %d dependencies", route.RelativeOutput, route.FolderPath, len(copiedDependencies))
@@ -157,10 +168,30 @@ func (rg *RouteGenerator) generateRoutesRegistry(routes []models.Route, cfg *con
 }
 
 func (rg *RouteGenerator) needsRegeneration(route models.Route) bool {
+	// Check if output file exists
 	if _, err := os.Stat(route.OutputPath); os.IsNotExist(err) {
+		logger.Debug("Output file does not exist, regeneration needed for route: %s -> %s", route.FolderPath, route.OutputPath)
 		return true
 	}
 
-	fileCache := cache.GetCache()
-	return fileCache.HasContentChanged(route.ParsedFile.Path)
+	cacheManager := cache.GetCacheManager()
+
+	// Get a regeneration plan for this specific file
+	plan, err := cacheManager.GetRegenerationPlan([]string{route.ParsedFile.Path})
+	if err != nil {
+		logger.Debug("Failed to get regeneration plan for %s: %v, assuming regeneration needed", route.ParsedFile.Path, err)
+		return true
+	}
+
+	// Check if this route is in the affected files list
+	for _, affectedFile := range plan.AffectedFiles {
+		if affectedFile == route.ParsedFile.Path {
+			reason := plan.Reasons[affectedFile]
+			logger.Debug("Regeneration needed for route: %s (source: %s) - %s", route.FolderPath, route.ParsedFile.Path, reason)
+			return true
+		}
+	}
+
+	logger.Debug("No regeneration needed for route: %s (source: %s)", route.FolderPath, route.ParsedFile.Path)
+	return false
 }

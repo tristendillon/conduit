@@ -44,12 +44,18 @@ func NewRouteWalker() *RouteWalkerImpl {
 	}
 }
 
+
+
 func (w *RouteWalkerImpl) Walk(root string, moduleName string) ([]models.DiscoveredFile, error) {
 	startTime := time.Now()
 	w.RouteTree.Reset()
 	var discovered []models.DiscoveredFile
-	fileCache := cache.GetCache()
-	isInitialPopulation := !fileCache.IsWarmed()
+	cacheManager := cache.GetCacheManager()
+
+	// Warm the cache if this is the first run
+	if err := cacheManager.WarmCache(root, w.Exclude); err != nil {
+		logger.Debug("Failed to warm cache: %v", err)
+	}
 
 	var cacheHits, cacheMisses int
 
@@ -78,20 +84,21 @@ func (w *RouteWalkerImpl) Walk(root string, moduleName string) ([]models.Discove
 
 		routeFile := filepath.Join(path, "route.go")
 		if _, err := os.Stat(routeFile); err == nil {
-			if cachedParsed, found := fileCache.ValidateAndGet(routeFile); found {
+			// Try to get from cache first
+			if cachedParsed, found, err := cacheManager.GetParsedFile(routeFile); err == nil && found {
 				w.RouteTree.AddRoute(cachedParsed)
 				logger.Debug("Using cached route: %s (methods: %v)", relPath, cachedParsed.Methods)
 				cacheHits++
 			} else {
+				// Parse the file
 				parsed, err := ast.ParseRouteWithFunctions(routeFile, relPath, moduleName)
 				if err != nil {
 					logger.Debug("Failed to parse route %s: %v, skipping", routeFile, err)
 					return nil
 				}
 
-				// Always cache the parsed result (even if it's empty due to invalid syntax)
-				// This prevents repeated parsing attempts on problematic files
-				if err := fileCache.Set(routeFile, parsed); err != nil {
+				// Store in cache using new cache manager
+				if err := cacheManager.SetParsedFile(routeFile, parsed); err != nil {
 					logger.Debug("Failed to cache parsed route %s: %v", routeFile, err)
 				}
 
@@ -111,14 +118,16 @@ func (w *RouteWalkerImpl) Walk(root string, moduleName string) ([]models.Discove
 	walkDuration := time.Since(startTime)
 	totalRoutes := cacheHits + cacheMisses
 
-	if isInitialPopulation && totalRoutes > 0 {
-		logger.Debug("Initial walk completed in %v: discovered and cached %d routes",
-			walkDuration, totalRoutes)
-		fileCache.MarkWarmed()
-	} else if totalRoutes > 0 {
+	if totalRoutes > 0 {
 		cacheHitRate := float64(cacheHits) / float64(totalRoutes) * 100
 		logger.Debug("Walk completed in %v: %d routes (%.1f%% cached, %d parsed)",
 			walkDuration, totalRoutes, cacheHitRate, cacheMisses)
+
+		// Log cache statistics
+		stats := cacheManager.GetStats()
+		for layer, stat := range stats {
+			logger.Debug("%s cache: %d files, %.1f%% hit rate", layer, stat.TotalFiles, stat.HitRate)
+		}
 	} else {
 		logger.Debug("Walk completed in %v: no routes found", walkDuration)
 	}

@@ -11,7 +11,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
 	users := user_repo.GetAllUsers()
 	data, err := json.Marshal(users)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, "Error marshalling", http.StatusInternalServerError)
 		return
 	}
 	w.Write(data)

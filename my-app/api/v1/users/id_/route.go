@@ -16,7 +16,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	user := user_repo.FindUser(id)
 	if user == nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, "The user you are looking for does not exist", http.StatusNotFound)
 		return
 	}
 	data, err := json.Marshal(user)
